@@ -11,12 +11,13 @@ import matplotlib.pyplot as plt
 
 # 1. Configuration & Hyperparameters
 CONFIG = {
-    'layer_dims': [6000, 3000, 1000, 500, 100],
+    #'layer_dims': [6000, 3000, 1000, 500, 100],
+    'layer_dims': [600, 300, 100, 50, 20],
     'latent_dim': 50,
-    'batch_size': 8,
+    'batch_size': 64,
     #'batch_size': None,
     'epochs': 400, # Set to 400 for real training
-    'learning_rate': 0.001,
+    'learning_rate': 0.002,
     'test_split': 0.1,
     'seed': 42,
     'alpha': 1.0, # KL weight multiplier
@@ -174,6 +175,8 @@ def main():
     for epoch in range(CONFIG['epochs']):
         model.train()
         train_loss = 0
+        
+        beta = min(1.0, epoch * CONFIG['kappa'])
         
         # Update Beta (Warmup)
         if beta <= 1.0:

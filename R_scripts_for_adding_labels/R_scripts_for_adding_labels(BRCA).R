@@ -2,7 +2,7 @@
 #read in vae compressed data
 #################################################
 #expression data
-expr.data <- read.table("../VAE_models/counts_data/vae_compressed/encoded_BRCA_VAE_z50_pytorch.tsv", 
+expr.data <- read.table("../VAE_models/counts_data/vae_compressed/encoded_BRCA_VAE_z50_pytorch_exp2.tsv", 
                         sep="\t",
                         header=TRUE, 
                         stringsAsFactors=FALSE, 
@@ -59,7 +59,7 @@ if (!dir.exists(output_dir)) {
 }
 
 write.table(merge.chemo.label.data,
-            file=paste0(output_dir, "encoded_BRCA_VAE_z50_withLabels_pytorch.txt"),
+            file=paste0(output_dir, "encoded_BRCA_VAE_z50_withLabels_pytorch_exp2.txt"),
             sep="\t",
             quote=FALSE,
             row.names=T,

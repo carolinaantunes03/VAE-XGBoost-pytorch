@@ -19,6 +19,10 @@ from itertools import cycle
 
 from xgboost import XGBClassifier
 
+from imblearn.over_sampling import SMOTE
+from sklearn.metrics import precision_recall_curve
+
+
 # --------------------------
 # Random seed
 r_seed = 42
@@ -34,7 +38,7 @@ print("Python version:", sys.version)
 
 # --------------------------
 # Reading the VAE-compressed dataset
-compress_path = '../VAE_models/counts_data/vae_compressed_wLabels/encoded_BRCA_VAE_z50_withLabels_pytorch.txt'
+compress_path = '../VAE_models/counts_data/vae_compressed_wLabels/encoded_BRCA_VAE_z50_withLabels_pytorch_exp2.txt'
 og_data = pd.read_csv(compress_path, sep="\t", index_col=0)
 og_data = og_data.dropna(axis='columns')
 print("Dimension of input data:", og_data.shape)
@@ -141,6 +145,7 @@ else:
     scale_pos_weight = 1
     print("Non-binary labels detected, no scale_pos_weight used.")
 
+
 # --------------------------
 # Example: GridSearchCV for XGBoost with scale_pos_weight
 param_test_loop1 = {
@@ -166,9 +171,9 @@ print("Best score:", gsearch_loop1.best_score_)
 
 # --------------------------
 # 30 runs of 5-fold CV
-num_runs = 5
+num_runs = 30
 all_auc = []
-all_conf = np.zeros((2, 2), dtype=int)
+all_conf_mats = []
 
 for run in range(num_runs):
     print(f"\n===== Run {run+1}/{num_runs} =====")
@@ -185,25 +190,66 @@ for run in range(num_runs):
     y_xgb_pred = np.argmax(y_xgb_prob, axis=1) if y_xgb_prob.shape[1] > 1 else (y_xgb_prob[:,1] > 0.5).astype(int)
 
     auc_val = roc_auc_score(y, y_xgb_prob[:,1])
+
+
     conf_mat = confusion_matrix(y, y_xgb_pred)
+    
     all_auc.append(auc_val)
-    all_conf += conf_mat
+    all_conf_mats.append(conf_mat)
 
     print(f"AUC (Run {run+1}): {auc_val:.4f}")
 
 # --------------------------
+# Compute mean confusion matrix (average of all runs)
+mean_conf = np.mean(all_conf_mats, axis=0)
+
 # Summary results
 print("\n========================================")
 print(f"Mean AUC across {num_runs} runs: {np.mean(all_auc):.4f}")
 print(f"Std AUC across {num_runs} runs: {np.std(all_auc):.4f}")
-print("Combined Confusion Matrix:")
-print(all_conf)
+print("Mean Confusion Matrix:")
+print(mean_conf.round(2))
 print("========================================")
 
-# Plot histogram of AUCs
-plt.figure(figsize=(6,4))
-sns.histplot(all_auc, bins=10, kde=True, color='royalblue')
-plt.title(f"AUC distribution across {num_runs} runs")
-plt.xlabel("AUC")
-plt.ylabel("Frequency")
+# --------------------------
+# Plot bar plot of AUC for each run
+plt.figure(figsize=(10, 5))
+sns.barplot(x=np.arange(1, num_runs + 1), y=all_auc, palette='viridis')
+plt.title(f"AUC per Run ({num_runs} runs of {num_cv}-fold CV)")
+plt.xlabel("Run")
+plt.ylabel("AUC")
+plt.ylim(0, 1)
 plt.show()
+
+# --------------------------
+# Plot heatmap of mean confusion matrix
+plt.figure(figsize=(5, 4))
+sns.heatmap(mean_conf, annot=True, fmt=".2f", cmap="Blues",
+            xticklabels=class_names, yticklabels=class_names)
+plt.title(f"Mean Confusion Matrix over {num_runs} runs")
+plt.xlabel("Predicted label")
+plt.ylabel("True label")
+plt.show()
+
+import pandas as pd
+import numpy as np
+
+# After training or CV (e.g., after your 30 runs)
+final_xgb = XGBClassifier(**gsearch_loop1.best_params_,
+                          scale_pos_weight=scale_pos_weight,
+                          use_label_encoder=False,
+                          eval_metric='logloss')
+
+final_xgb.fit(X, y)
+
+# Get feature importances (e.g., importance_type='cover' or 'gain')
+importances = final_xgb.get_booster().get_score(importance_type='cover')
+
+# Convert to DataFrame
+importance_df = pd.DataFrame(list(importances.items()),
+                             columns=['Feature', 'Importance'])
+importance_df = importance_df.sort_values(by='Importance', ascending=False)
+
+# Save to file for R plotting
+importance_df.to_csv("Ranking_VAE_feature_importance.txt",
+                     sep="\t", index=False)
