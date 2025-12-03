@@ -231,25 +231,37 @@ plt.xlabel("Predicted label")
 plt.ylabel("True label")
 plt.show()
 
-import pandas as pd
-import numpy as np
+# --------------------------
+# Feature importance extraction from the final trained model
+# --------------------------
 
-# After training or CV (e.g., after your 30 runs)
-final_xgb = XGBClassifier(**gsearch_loop1.best_params_,
-                          scale_pos_weight=scale_pos_weight,
-                          use_label_encoder=False,
-                          eval_metric='logloss')
-
+# Fit one final XGBoost model on the full dataset (with best params)
+final_xgb = XGBClassifier(
+    **gsearch_loop1.best_params_,
+    scale_pos_weight=scale_pos_weight,
+    max_delta_step=1,
+    use_label_encoder=False,
+    eval_metric='logloss'
+)
 final_xgb.fit(X, y)
 
-# Get feature importances (e.g., importance_type='cover' or 'gain')
-importances = final_xgb.get_booster().get_score(importance_type='cover')
+# Extract feature importances (gain = how much a feature improves splits)
+booster = final_xgb.get_booster()
+importance_dict = booster.get_score(importance_type='gain')
 
 # Convert to DataFrame
-importance_df = pd.DataFrame(list(importances.items()),
-                             columns=['Feature', 'Importance'])
-importance_df = importance_df.sort_values(by='Importance', ascending=False)
+importances_df = pd.DataFrame(
+    list(importance_dict.items()), columns=['Feature', 'Importance']
+).sort_values(by='Importance', ascending=False)
 
-# Save to file for R plotting
-importance_df.to_csv("Ranking_VAE_feature_importance.txt",
-                     sep="\t", index=False)
+# Print top 20
+print("\nTop 20 most important latent features (from XGBoost):")
+print(importances_df.head(20))
+
+# Save to file for reference or plotting
+importances_df.to_csv(
+    "Ranking_VAE_feature_importance.txt",
+    sep="\t", index=False
+)
+print("\nFeature importance table saved as 'Ranking_VAE_feature_importance.txt'")
+
