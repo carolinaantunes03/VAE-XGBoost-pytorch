@@ -2,7 +2,9 @@
 #read in vae compressed data
 #################################################
 #expression data
-expr.data <- read.table("../VAE_models/counts_data/vae_compressed/encoded_BRCA_VAE_z50_pytorch_exp2.tsv", 
+
+#expr.data <- read.table("../VAE_models/counts_data/vae_compressed/encoded_BRCA_VAE_z50_pytorch_exp3.tsv"
+expr.data <- read.table("counts_data/vae_compressed/encoded_BRCA_VAE_z50_pytorch_exp3.tsv", 
                         sep="\t",
                         header=TRUE, 
                         stringsAsFactors=FALSE, 
@@ -11,7 +13,8 @@ expr.data <- read.table("../VAE_models/counts_data/vae_compressed/encoded_BRCA_V
                         comment.char="#")
 #################################
 #clinical data
-cli.data <- read.table ("../binary_labels/TCGA-BRCA-binary-labels.txt", sep="\t",
+#cli.data <- read.table ("../binary_labels/TCGA-BRCA-binary-labels.txt", sep="\t",
+cli.data <- read.table ("binary_labels/TCGA-BRCA-binary-labels.txt", sep="\t",
                         header=T, stringsAsFactors=FALSE,
                         quote="",
                         comment.char="#")
@@ -53,13 +56,14 @@ colnames(merge.chemo.label.data[,(ncol(merge.chemo.label.data) - 6):ncol(merge.c
 #output file
 #################################################################
 
-output_dir <- "../VAE_models/counts_data/vae_compressed_wLabels/"
+#output_dir <- "../VAE_models/counts_data/vae_compressed_wLabels/"
+output_dir <- "counts_data/vae_compressed_wLabels/"
 if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
 
 write.table(merge.chemo.label.data,
-            file=paste0(output_dir, "encoded_BRCA_VAE_z50_withLabels_pytorch_exp2.txt"),
+            file=paste0(output_dir, "encoded_BRCA_VAE_z50_withLabels_pytorch_exp3.txt"),
             sep="\t",
             quote=FALSE,
             row.names=T,

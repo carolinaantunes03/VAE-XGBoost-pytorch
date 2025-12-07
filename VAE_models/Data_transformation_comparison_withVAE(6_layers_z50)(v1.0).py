@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 
 # 1. Configuration & Hyperparameters
 CONFIG = {
-    #'layer_dims': [6000, 3000, 1000, 500, 100],
-    'layer_dims': [600, 300, 100, 50, 20],
+    'layer_dims': [6000, 3000, 1000, 500, 100],
+    #'layer_dims': [600, 300, 100, 50, 20],
     'latent_dim': 50,
     'batch_size': 64,
     #'batch_size': None,
@@ -22,7 +22,8 @@ CONFIG = {
     'seed': 42,
     'alpha': 1.0, # KL weight multiplier
     'kappa': 0.002, # Warmup step
-    'device': torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+#    'device': torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    'device': torch.device("cuda" if torch.cuda.is_available() else "cpu") 
 
 }
 
@@ -145,7 +146,7 @@ def loss_function(recon_x, x, mu, logvar, beta, alpha=1.0):
 def main():
     # --- Paths ---
     # Update this path to your actual file
-    file_path = '../TCGA_BRCA_VSTnorm_count_expr_clinical_data.txt'
+    file_path = 'TCGA_BRCA_VSTnorm_count_expr_clinical_data.txt'
     
     # --- Load Data ---
     train_df, test_df, input_dim, all_indices, test_indices = load_and_process_data(file_path)
@@ -226,7 +227,7 @@ def main():
     
     out_dir = os.path.join("counts_data", "vae_compressed")
     os.makedirs(out_dir, exist_ok=True)
-    save_path = os.path.join(out_dir, "encoded_BRCA_VAE_z50_pytorch_exp2.tsv")
+    save_path = os.path.join(out_dir, "encoded_BRCA_VAE_z50_pytorch_exp3.tsv")
     
     z_df.to_csv(save_path, sep='\t')
     print(f"Encoded data saved to: {save_path}")
