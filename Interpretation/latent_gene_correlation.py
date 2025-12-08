@@ -3,48 +3,83 @@ import numpy as np
 from scipy.stats import pearsonr
 
 # === CONFIGURATION ===
-latent_file = "../VAE_models/counts_data/vae_compressed/encoded_BRCA_VAE_z50_pytorch_exp2.tsv"
-expression_file = "../TCGA_BRCA_VSTnorm_count_expr_clinical_data.txt"
-latent_feature = "45"   # Example: '1' for z1, '19' for z19
+latent_file = "../counts_data/vae_compressed/encoded_BRCA_VAE_z50_pytorch_exp3.tsv"
+expression_file = "../counts_data/counts_data_with_label/TCGA_BRCA_VSTnorm_count_expr_clinical_data.txt"
+latent_feature = "45"   # f44 corresponds to latent variable X45
 output_file = f"gene_correlation_z{latent_feature}.tsv"
+
+
 
 # === LOAD DATA ===
 print("Loading data...")
 latent_df = pd.read_csv(latent_file, sep="\t", index_col=0)
-expr_df = pd.read_csv(expression_file, sep="\t", index_col=0)
 
-# Ensure samples match
+# For the expression file, use Ensembl_ID as the sample index
+expr_df = pd.read_csv(expression_file, sep="\t")
+expr_df = expr_df.set_index("Ensembl_ID")
+
+# Drop any non-gene metadata columns (like response_group)
+if "response_group" in expr_df.columns:
+    expr_df = expr_df.drop(columns=["response_group"])
+
+
+# === ALIGN SAMPLES ===
+# Clean sample names just in case
+latent_df.index = latent_df.index.str.strip()
+expr_df.index = expr_df.index.str.strip()
+
+# Find intersection
 common_samples = latent_df.index.intersection(expr_df.index)
 latent_df = latent_df.loc[common_samples]
 expr_df = expr_df.loc[common_samples]
 
+print("Number of latent samples:", len(latent_df))
+print("Number of expression samples:", len(expr_df))
+print("Number of common samples:", len(common_samples))
+
 print(f"Using {len(common_samples)} common samples.")
+print(f"Expression matrix shape: {expr_df.shape}")
 
-# === SELECT LATENT FEATURE ===
-z_vector = latent_df[f"{latent_feature}"]  # column name = number (1..50)
-z_vector = z_vector.astype(float)
+# === SELECT LATENT FEATURE VECTOR ===
+z_vector = latent_df[f"{latent_feature}"].astype(float)
+print(f"Selected latent feature z{latent_feature} with mean={z_vector.mean():.4f}, std={z_vector.std():.4f}")
 
-# === CORRELATION LOOP ===
-print(f"Calculating Pearson correlation between z{latent_feature} and {expr_df.shape[1]} genes...")
+# === OPTIONAL: REMOVE ZERO-VARIANCE GENES ===
+expr_df = expr_df.loc[:, expr_df.var(axis=0) > 0]
 
-results = []
-for gene in expr_df.columns:
-    gene_expr = expr_df[gene].astype(float)
-    if gene_expr.var() == 0:
-        continue  # skip constant genes
-    r, p = pearsonr(z_vector, gene_expr)
-    results.append((gene, r, p))
+# === VECTORIZE CORRELATION COMPUTATION ===
+print("Calculating Pearson correlations (vectorized)...")
 
-cor_df = pd.DataFrame(results, columns=["Gene", "Pearson_r", "p_value"])
+# Standardize both z_vector and expression data
+z_std = (z_vector - z_vector.mean()) / z_vector.std(ddof=0)
+expr_std = (expr_df - expr_df.mean(axis=0)) / expr_df.std(axis=0, ddof=0)
+
+# Compute Pearson correlation: r = (Xᵀz) / (n - 1)
+n = len(z_std)
+r_values = expr_std.T.dot(z_std) / (n - 1)
+
+# Convert to DataFrame
+cor_df = pd.DataFrame({
+    "Gene": r_values.index,
+    "Pearson_r": r_values.values
+})
 cor_df["abs_r"] = cor_df["Pearson_r"].abs()
 
-# Sort by absolute correlation strength
+# Sort by absolute correlation
 cor_df = cor_df.sort_values(by="abs_r", ascending=False)
 
 # === SAVE RESULTS ===
 cor_df.to_csv(output_file, sep="\t", index=False)
-print(f"Saved correlation table: {output_file}")
+print(f"\n✅ Saved correlation table: {output_file}")
 
-# === OPTIONAL: Print top genes ===
-print("\nTop 10 genes most correlated with z" + latent_feature + ":")
+# === PRINT SUMMARY ===
+print("\nTop 10 most correlated genes with z" + latent_feature + ":")
 print(cor_df.head(10))
+
+# === SELECT TOP 500 GENES ===
+top_genes = cor_df.head(500)["Gene"].tolist()
+top_output_file = f"top500_gene_correlation_z{latent_feature}.tsv"
+cor_df.head(500).to_csv(top_output_file, sep="\t", index=False)
+print(f"\n✅ Saved top 500 correlated genes: {top_output_file}")
+
+

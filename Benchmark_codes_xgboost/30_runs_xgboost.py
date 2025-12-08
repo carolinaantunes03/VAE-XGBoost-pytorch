@@ -38,7 +38,7 @@ print("Python version:", sys.version)
 
 # --------------------------
 # Reading the VAE-compressed dataset
-compress_path = 'counts_data/vae_compressed_wLabels/encoded_BRCA_VAE_z50_withLabels_pytorch_exp3.txt'
+compress_path = '../counts_data/vae_compressed_wLabels/encoded_BRCA_VAE_z50_withLabels_pytorch_exp3.txt'
 og_data = pd.read_csv(compress_path, sep="\t", index_col=0)
 og_data = og_data.dropna(axis='columns')
 print("Dimension of input data:", og_data.shape)
