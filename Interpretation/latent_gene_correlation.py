@@ -83,3 +83,10 @@ cor_df.head(500).to_csv(top_output_file, sep="\t", index=False)
 print(f"\n✅ Saved top 500 correlated genes: {top_output_file}")
 
 
+# SELECT GENES WITH CORRELATION >= 0.2
+
+threshold = 0.2
+filtered_df = cor_df[cor_df["abs_r"] >= threshold]
+filtered_output_file = f"gene_correlation_z{latent_feature}_absr_above_{threshold}.tsv"
+filtered_df.to_csv(filtered_output_file, sep="\t", index=False)
+print(f"\n✅ Saved genes with |Pearson_r| >= {threshold}: {filtered_output_file}")
