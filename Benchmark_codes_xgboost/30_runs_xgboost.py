@@ -174,6 +174,7 @@ print("Best score:", gsearch_loop1.best_score_)
 num_runs = 30
 all_auc = []
 all_conf_mats = []
+all_auprc = []
 
 for run in range(num_runs):
     print(f"\n===== Run {run+1}/{num_runs} =====")
@@ -199,9 +200,18 @@ for run in range(num_runs):
 
     print(f"AUC (Run {run+1}): {auc_val:.4f}")
 
+    precision, recall, _ = precision_recall_curve(y, y_xgb_prob[:,1])
+    auprc_val = auc(recall, precision)
+
+    all_auprc.append(auprc_val)
+    print(f"AUPRC (Run {run+1}): {auprc_val:.4f}")
+
 # --------------------------
 # Compute mean confusion matrix (average of all runs)
 mean_conf = np.mean(all_conf_mats, axis=0)
+
+mean_auprc = np.mean(all_auprc)
+std_auprc = np.std(all_auprc)
 
 # Summary results
 print("\n========================================")
@@ -209,6 +219,10 @@ print(f"Mean AUC across {num_runs} runs: {np.mean(all_auc):.4f}")
 print(f"Std AUC across {num_runs} runs: {np.std(all_auc):.4f}")
 print("Mean Confusion Matrix:")
 print(mean_conf.round(2))
+print(f"Mean AUPRC across {num_runs} runs: {mean_auprc:.4f}")
+print(f"Std AUPRC across {num_runs} runs: {std_auprc:.4f}")
+print(f"Mean AUPRC across {num_runs} runs: {mean_auprc:.4f}")
+print(f"Std AUPRC across {num_runs} runs: {std_auprc:.4f}")
 print("========================================")
 
 # --------------------------
@@ -220,6 +234,15 @@ plt.xlabel("Run")
 plt.ylabel("AUC")
 plt.ylim(0, 1)
 plt.show()
+
+plt.figure(figsize=(10, 5))
+sns.barplot(x=np.arange(1, num_runs + 1), y=all_auprc, palette='magma')
+plt.title(f"AUPRC per Run ({num_runs} runs of {num_cv}-fold CV)")
+plt.xlabel("Run")
+plt.ylabel("AUPRC")
+plt.ylim(0, 1)
+plt.show()
+
 
 # --------------------------
 # Plot heatmap of mean confusion matrix
@@ -257,6 +280,24 @@ importances_df = pd.DataFrame(
 # Print top 20
 print("\nTop 20 most important latent features (from XGBoost):")
 print(importances_df.head(20))
+
+
+# -----------------------------------------
+# Plot top features by importance (bar plot)
+# -----------------------------------------
+TOP_N = 20  # change as needed
+
+plt.figure(figsize=(8, 6))
+sns.barplot(
+    data=importances_df.head(TOP_N),
+    x="Importance", y="Feature",
+    palette="viridis"
+)
+plt.title(f"Top {TOP_N} Most Important Features")
+plt.xlabel("Importance (gain)")
+plt.ylabel("Feature")
+plt.tight_layout()
+plt.show()
 
 # Save to file for reference or plotting
 importances_df.to_csv(

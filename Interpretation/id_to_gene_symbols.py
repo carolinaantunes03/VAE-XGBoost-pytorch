@@ -1,48 +1,40 @@
-import mygene
 import pandas as pd
+import mygene
 
-latent_feature = "45"   # f44 corresponds to latent variable X45
+# === CONFIGURATION ===
+input_file = "gene_correlation_z45_absr_above_0.4.tsv"
+output_symbols_txt = "gene_symbols_above_0.4_z45.txt"
+output_mapping_tsv = "ensembl_to_symbol_mapping__above_0.4z45.tsv"
 
-# Load your top 500 genes file
-top_df = pd.read_csv(f"top500_gene_correlation_z{latent_feature}.tsv", sep="\t")
+# === LOAD AND CLEAN ===
+df = pd.read_csv(input_file, sep="\t")
+print(f"Loaded {len(df)} entries from {input_file}")
 
-# Clean Ensembl IDs (remove version numbers like ".16")
-top_df["Gene_clean"] = top_df["Gene"].str.split(".").str[0]
+# Keep only Gene column and remove version numbers
+df["Ensembl_ID"] = df["Gene"].str.split(".").str[0]
+df = df[["Ensembl_ID"]].drop_duplicates()
 
-# Query mygene for gene symbols
+# === CONVERT TO GENE SYMBOLS ===
+print("Converting Ensembl IDs to gene symbols via MyGene.info...")
 mg = mygene.MyGeneInfo()
-query_result = mg.querymany(
-    top_df["Gene_clean"].tolist(),
-    scopes="ensembl.gene",
-    fields="symbol,name",
-    species="human"
-)
+results = mg.querymany(df["Ensembl_ID"].tolist(), scopes="ensembl.gene", fields="symbol", species="human")
 
-# Convert results to DataFrame and merge
-mapping_df = pd.DataFrame(query_result)[["query", "symbol", "name"]].drop_duplicates("query")
-top_df = top_df.merge(mapping_df, left_on="Gene_clean", right_on="query", how="left")
+# Extract mapping
+mapping = []
+for r in results:
+    ensembl_id = r["query"]
+    symbol = r.get("symbol")
+    mapping.append((ensembl_id, symbol if symbol is not None else "NA"))
 
-# Save mapped results
-mapped_output_file = f"top500_gene_correlation_z{latent_feature}_mapped.tsv"
-top_df.to_csv(mapped_output_file, sep="\t", index=False)
-print(f"\n✅ Saved Ensembl → Symbol mapped file: {mapped_output_file}")
-print(top_df.head(10))
+mapping_df = pd.DataFrame(mapping, columns=["Ensembl_ID", "Gene_Symbol"])
 
-# Load the mapped file
-mapped_file = f"top500_gene_correlation_z{latent_feature}_mapped.tsv"
-df = pd.read_csv(mapped_file, sep="\t")
+# Merge back to preserve original order
+merged_df = df.merge(mapping_df, on="Ensembl_ID", how="left")
 
-# Keep only genes that were successfully mapped
-rnk_df = df[["symbol", "Pearson_r"]].dropna()
+# === SAVE RESULTS ===
+merged_df.to_csv(output_mapping_tsv, sep="\t", index=False)
+merged_df["Gene_Symbol"].dropna().to_csv(output_symbols_txt, index=False, header=False)
 
-# Drop duplicates (some Ensembl IDs map to the same symbol)
-rnk_df = rnk_df.drop_duplicates(subset="symbol")
-
-# Sort by correlation (descending for positive enrichment)
-rnk_df = rnk_df.sort_values(by="Pearson_r", ascending=False)
-
-# Save to GSEA format
-rnk_file = f"gene_correlation_z{latent_feature}.rnk"
-rnk_df.to_csv(rnk_file, sep="\t", header=False, index=False)
-print(f"✅ GSEA rank file created: {rnk_file}")
-print(rnk_df.head())
+print(f"\n✅ Saved mapping table: {output_mapping_tsv}")
+print(f"✅ Saved gene symbol list for g:Profiler: {output_symbols_txt}")
+print(f"Total mapped symbols: {merged_df['Gene_Symbol'].notna().sum()} / {len(merged_df)}")

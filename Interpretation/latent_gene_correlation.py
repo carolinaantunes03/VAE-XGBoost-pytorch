@@ -77,16 +77,45 @@ print("\nTop 10 most correlated genes with z" + latent_feature + ":")
 print(cor_df.head(10))
 
 # === SELECT TOP 500 GENES ===
-top_genes = cor_df.head(500)["Gene"].tolist()
-top_output_file = f"top500_gene_correlation_z{latent_feature}.tsv"
-cor_df.head(500).to_csv(top_output_file, sep="\t", index=False)
-print(f"\n✅ Saved top 500 correlated genes: {top_output_file}")
+top_genes = cor_df.head(1000)["Gene"].tolist()
+top_output_file = f"top1000_gene_correlation_z{latent_feature}.tsv"
+cor_df.head(1000).to_csv(top_output_file, sep="\t", index=False)
+print(f"\n✅ Saved top 1000 correlated genes: {top_output_file}")
 
 
 # SELECT GENES WITH CORRELATION >= 0.2
 
-threshold = 0.2
+threshold = 0.4
 filtered_df = cor_df[cor_df["abs_r"] >= threshold]
 filtered_output_file = f"gene_correlation_z{latent_feature}_absr_above_{threshold}.tsv"
 filtered_df.to_csv(filtered_output_file, sep="\t", index=False)
 print(f"\n✅ Saved genes with |Pearson_r| >= {threshold}: {filtered_output_file}")
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# === VISUALIZE CORRELATION DISTRIBUTION ===
+plt.figure(figsize=(8,5))
+sns.histplot(cor_df["Pearson_r"], bins=100, color="#2E86AB", kde=True)
+plt.title(f"Distribution of Pearson correlations with latent feature z{latent_feature}")
+plt.xlabel("Pearson correlation (r)")
+plt.ylabel("Number of genes")
+plt.axvline(x=0.6, color="red", linestyle="--", label="|r| = 0.6")
+plt.axvline(x=-0.6, color="red", linestyle="--")
+plt.legend()
+plt.tight_layout()
+plt.savefig(f"correlation_distribution_z{latent_feature}.png", dpi=300)
+plt.show()
+
+top_n = 20
+plt.figure(figsize=(6,4))
+sns.barplot(
+    data=cor_df.head(top_n),
+    x="abs_r", y="Gene", color="#1F77B4"
+)
+plt.title(f"Top {top_n} genes correlated with latent feature z{latent_feature}")
+plt.xlabel("|Pearson r|")
+plt.ylabel("Gene ID")
+plt.tight_layout()
+plt.savefig(f"top{top_n}_correlated_genes_z{latent_feature}.png", dpi=300)
+plt.show()
