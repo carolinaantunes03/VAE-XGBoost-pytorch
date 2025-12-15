@@ -23,8 +23,7 @@ from imblearn.over_sampling import SMOTE
 from sklearn.metrics import precision_recall_curve
 
 
-# --------------------------
-# Random seed
++
 r_seed = 42
 np.random.seed(r_seed)
 torch.manual_seed(r_seed)
@@ -36,25 +35,23 @@ print("Current random seed:", r_seed)
 print("PyTorch version:", torch.__version__)
 print("Python version:", sys.version)
 
-# --------------------------
+
 # Reading the VAE-compressed dataset
 compress_path = '../counts_data/vae_compressed_wLabels/encoded_BRCA_VAE_z50_withLabels_pytorch_exp3.txt'
 og_data = pd.read_csv(compress_path, sep="\t", index_col=0)
 og_data = og_data.dropna(axis='columns')
 print("Dimension of input data:", og_data.shape)
 
-# --------------------------
-# Raw dataframe
+
 df_raw = og_data.set_index('Ensembl_ID')
 
-# Features and labels
 X = df_raw.iloc[:, :-1].values
 y = df_raw['response_group'].values
 class_names = np.unique(y)
 print("Unique labels from y:", class_names)
 
-# --------------------------
-# Confusion matrix plotting function
+
+# Confusion matrix 
 def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion matrix', cmap=plt.cm.Blues):
     if normalize:
         cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
@@ -80,8 +77,8 @@ def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion matrix'
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
 
-# --------------------------
-# Multi-class ROC-AUC plotting
+
+#  ROC-AUC plot
 def plot_multiclass_roc_auc(actual, probs, n_classes, title='multi-class roc'):
     lb = LabelBinarizer()
     lb.fit(actual)
@@ -104,8 +101,7 @@ def plot_multiclass_roc_auc(actual, probs, n_classes, title='multi-class roc'):
     plt.title('Receiver operating characteristic for multi-class data using ' + title)
     plt.legend(loc="lower right")
 
-# --------------------------
-# Multi-class and binary-class ROC-AUC scoring
+
 def multiclass_roc_auc_score(y_test, y_prob, average="weighted"):
     lb = LabelBinarizer()
     lb.fit(y_test)
@@ -118,7 +114,6 @@ def binary_class_roc_auc_score(y_true, y_score, average="weighted"):
 multiclass_score = make_scorer(multiclass_roc_auc_score, needs_proba=True)
 binaryclass_score = make_scorer(binary_class_roc_auc_score, needs_threshold=True)
 
-# --------------------------
 # Hyperparameter tuning using RandomizedSearchCV
 def hypertuning_rscv(est, p_distr, nbr_iter, X, y):
     cv = StratifiedKFold(n_splits=3, random_state=r_seed, shuffle=True)
@@ -134,7 +129,6 @@ def hypertuning_rscv(est, p_distr, nbr_iter, X, y):
 
 from collections import Counter
 
-# --------------------------
 # Handle class imbalance
 counter = Counter(y)
 print("Class distribution:", counter)
@@ -146,7 +140,6 @@ else:
     print("Non-binary labels detected, no scale_pos_weight used.")
 
 
-# --------------------------
 # Example: GridSearchCV for XGBoost with scale_pos_weight
 param_test_loop1 = {
     'learning_rate': [0.05, 0.1, 0.2, 0.4, 0.6, 0.8],
@@ -169,7 +162,6 @@ gsearch_loop1.fit(X, y)
 print("Best params:", gsearch_loop1.best_params_)
 print("Best score:", gsearch_loop1.best_score_)
 
-# --------------------------
 # 30 runs of 5-fold CV
 num_runs = 30
 all_auc = []
@@ -206,7 +198,7 @@ for run in range(num_runs):
     all_auprc.append(auprc_val)
     print(f"AUPRC (Run {run+1}): {auprc_val:.4f}")
 
-# --------------------------
+
 # Compute mean confusion matrix (average of all runs)
 mean_conf = np.mean(all_conf_mats, axis=0)
 
@@ -225,7 +217,7 @@ print(f"Mean AUPRC across {num_runs} runs: {mean_auprc:.4f}")
 print(f"Std AUPRC across {num_runs} runs: {std_auprc:.4f}")
 print("========================================")
 
-# --------------------------
+
 # Plot bar plot of AUC for each run
 plt.figure(figsize=(10, 5))
 sns.barplot(x=np.arange(1, num_runs + 1), y=all_auc, palette='viridis')
@@ -244,7 +236,7 @@ plt.ylim(0, 1)
 plt.show()
 
 
-# --------------------------
+
 # Plot heatmap of mean confusion matrix
 plt.figure(figsize=(5, 4))
 sns.heatmap(mean_conf, annot=True, fmt=".2f", cmap="Blues",
@@ -254,9 +246,9 @@ plt.xlabel("Predicted label")
 plt.ylabel("True label")
 plt.show()
 
-# --------------------------
+# ----------------------------------------------------------
 # Feature importance extraction from the final trained model
-# --------------------------
+# ----------------------------------------------------------
 
 # Fit one final XGBoost model on the full dataset (with best params)
 final_xgb = XGBClassifier(

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import pearsonr
 
-# === CONFIGURATION ===
+
 latent_file = "../counts_data/vae_compressed/encoded_BRCA_VAE_z50_pytorch_exp3.tsv"
 expression_file = "../counts_data/counts_data_with_label/TCGA_BRCA_VSTnorm_count_expr_clinical_data.txt"
 latent_feature = "45"   # f44 corresponds to latent variable X45
@@ -10,7 +10,7 @@ output_file = f"gene_correlation_z{latent_feature}.tsv"
 
 
 
-# === LOAD DATA ===
+
 print("Loading data...")
 latent_df = pd.read_csv(latent_file, sep="\t", index_col=0)
 
@@ -23,8 +23,8 @@ if "response_group" in expr_df.columns:
     expr_df = expr_df.drop(columns=["response_group"])
 
 
-# === ALIGN SAMPLES ===
-# Clean sample names just in case
+# ALIGN SAMPLES 
+
 latent_df.index = latent_df.index.str.strip()
 expr_df.index = expr_df.index.str.strip()
 
@@ -40,14 +40,12 @@ print("Number of common samples:", len(common_samples))
 print(f"Using {len(common_samples)} common samples.")
 print(f"Expression matrix shape: {expr_df.shape}")
 
-# === SELECT LATENT FEATURE VECTOR ===
+#  SELECT LATENT FEATURE VECTOR 
 z_vector = latent_df[f"{latent_feature}"].astype(float)
 print(f"Selected latent feature z{latent_feature} with mean={z_vector.mean():.4f}, std={z_vector.std():.4f}")
 
-# === OPTIONAL: REMOVE ZERO-VARIANCE GENES ===
 expr_df = expr_df.loc[:, expr_df.var(axis=0) > 0]
 
-# === VECTORIZE CORRELATION COMPUTATION ===
 print("Calculating Pearson correlations (vectorized)...")
 
 # Standardize both z_vector and expression data
@@ -68,28 +66,22 @@ cor_df["abs_r"] = cor_df["Pearson_r"].abs()
 # Sort by absolute correlation
 cor_df = cor_df.sort_values(by="abs_r", ascending=False)
 
-# === SAVE RESULTS ===
-cor_df.to_csv(output_file, sep="\t", index=False)
-print(f"\n✅ Saved correlation table: {output_file}")
 
-# === PRINT SUMMARY ===
+cor_df.to_csv(output_file, sep="\t", index=False)
+print(f"\nSaved correlation table: {output_file}")
+
+
 print("\nTop 10 most correlated genes with z" + latent_feature + ":")
 print(cor_df.head(10))
 
-# === SELECT TOP 500 GENES ===
-top_genes = cor_df.head(1000)["Gene"].tolist()
-top_output_file = f"top1000_gene_correlation_z{latent_feature}.tsv"
-cor_df.head(1000).to_csv(top_output_file, sep="\t", index=False)
-print(f"\n✅ Saved top 1000 correlated genes: {top_output_file}")
 
-
-# SELECT GENES WITH CORRELATION >= 0.2
+# SELECT GENES WITH CORRELATION >= 0.4
 
 threshold = 0.4
 filtered_df = cor_df[cor_df["abs_r"] >= threshold]
 filtered_output_file = f"gene_correlation_z{latent_feature}_absr_above_{threshold}.tsv"
 filtered_df.to_csv(filtered_output_file, sep="\t", index=False)
-print(f"\n✅ Saved genes with |Pearson_r| >= {threshold}: {filtered_output_file}")
+print(f"\nSaved genes with |Pearson_r| >= {threshold}: {filtered_output_file}")
 
 import matplotlib.pyplot as plt
 import seaborn as sns

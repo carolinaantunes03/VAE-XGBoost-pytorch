@@ -4,17 +4,17 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
-# === CONFIGURATION ===
+
 gene_file = "gene_symbols_above_0.4_z45.txt"
 output_file = "gprofiler_results__above_0.4z45.tsv"
 
-# === LOAD GENE LIST ===
+
 with open(gene_file) as f:
     gene_list = [line.strip() for line in f if line.strip()]
 
 print(f"Loaded {len(gene_list)} genes for enrichment analysis")
 
-# === RUN g:Profiler ===
+# RUN g:Profiler 
 gp = GProfiler(return_dataframe=True)
 results = gp.profile(
     organism="hsapiens",
@@ -22,11 +22,11 @@ results = gp.profile(
     sources=["GO:BP", "KEGG", "REAC"],
 )
 
-# === SAVE RESULTS ===
-results.to_csv(output_file, sep="\t", index=False)
-print(f"\n✅ Saved enrichment results: {output_file}")
 
-# === DISPLAY TOP RESULTS ===
+results.to_csv(output_file, sep="\t", index=False)
+print(f"\nSaved enrichment results: {output_file}")
+
+
 # Check which intersection column exists
 intersection_col = None
 for col in ["intersections", "intersection", "intersect", "intersection_genes"]:
@@ -42,7 +42,6 @@ if intersection_col:
 print("\nTop 10 enriched terms:")
 print(results[display_cols].head(10).to_string(index=False))
 
-# === PLOT TOP RESULTS ===
 top = results.sort_values("p_value").head(10)
 
 plt.figure(figsize=(8,5))

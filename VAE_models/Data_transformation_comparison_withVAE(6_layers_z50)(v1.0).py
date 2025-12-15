@@ -9,25 +9,24 @@ from torch.utils.data import DataLoader, TensorDataset
 from sklearn import preprocessing
 import matplotlib.pyplot as plt
 
-# 1. Configuration & Hyperparameters
+# 1. Configuration e Hyperparameters
 CONFIG = {
     'layer_dims': [6000, 3000, 1000, 500, 100],
     #'layer_dims': [600, 300, 100, 50, 20],
     'latent_dim': 50,
     'batch_size': 64,
     #'batch_size': None,
-    'epochs': 400, # Set to 400 for real training
+    'epochs': 400,
     'learning_rate': 0.002,
     'test_split': 0.1,
     'seed': 42,
     'alpha': 1.0, # KL weight multiplier
-    'kappa': 0.002, # Warmup step
+    'kappa': 0.002, 
 #    'device': torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     'device': torch.device("cuda" if torch.cuda.is_available() else "cpu") 
 
 }
 
-# Set reproducibility
 torch.manual_seed(CONFIG['seed'])
 np.random.seed(CONFIG['seed'])
 
@@ -36,10 +35,10 @@ np.random.seed(CONFIG['seed'])
 def load_and_process_data(filepath):
     print(f"Loading data from: {filepath}")
     
-    # Check if file exists to prevent crash in demo mode
+    
     if not os.path.exists(filepath):
         print("Warning: File not found. Generating dummy data for demonstration.")
-        # Generate dummy gene expression data (samples x genes)
+        
         data = pd.DataFrame(np.random.rand(100, 20531)) 
     else:
         data = pd.read_csv(filepath, sep="\t", index_col=0)
@@ -47,7 +46,6 @@ def load_and_process_data(filepath):
 
     print(f"Input dimensions: {data.shape}")
     
-    # Normalize (MinMax 0-1)
     scaler = preprocessing.MinMaxScaler()
     data_scaled = scaler.fit_transform(data)
     
@@ -101,7 +99,7 @@ class VAE(nn.Module):
         
         self.decoder = nn.Sequential(*decoder_layers)
         
-        # Initialize weights (Glorot Normal)
+        # Initialize weights 
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -137,21 +135,17 @@ def loss_function(recon_x, x, mu, logvar, beta, alpha=1.0):
     # KL Divergence
     # -0.5 * sum(1 + log_var - mu^2 - exp(log_var))
     kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
-    # In original code, they divide KL by latent_dim in the 'per data point' comment, 
-    # but use the sum in the active code. We adhere to the active code logic.
     
     return recon_loss + (alpha * beta * kl_loss), recon_loss, kl_loss
 
 # 5. Main Execution
 def main():
-    # --- Paths ---
-    # Update this path to your actual file
-    file_path = 'TCGA_BRCA_VSTnorm_count_expr_clinical_data.txt'
+  
+    file_path = 'TCGA_BRCA_VSTnorm_count_expr_clinical_data.txt' # Path to data file
     
-    # --- Load Data ---
     train_df, test_df, input_dim, all_indices, test_indices = load_and_process_data(file_path)
 
-    #CONFIG['batch_size'] = len(train_df)
+    #CONFIG['batch_size'] = len(train_df) #changed due to computational limits
 
     # Convert to Tensors
     train_tensor = torch.FloatTensor(train_df.values).to(CONFIG['device'])
@@ -160,14 +154,14 @@ def main():
     train_loader = DataLoader(TensorDataset(train_tensor), batch_size=CONFIG['batch_size'], shuffle=True)
 
     
-    # --- Initialize Model ---
+    # Initialize Model 
     model = VAE(input_dim, CONFIG['layer_dims'], CONFIG['latent_dim']).to(CONFIG['device'])
     optimizer = optim.Adam(model.parameters(), lr=CONFIG['learning_rate'])
     
     print(f"Model architecture on {CONFIG['device']}:")
     print(model)
 
-    # --- Training Loop ---
+    # Training Loop
     print("\nStarting Training...")
     beta = 0.0 # Warmup variable
     start_time = time.time()
@@ -205,7 +199,7 @@ def main():
 
     print(f"Training time: {time.time() - start_time:.2f} seconds")
 
-    # --- Evaluation & Extraction ---
+    #  Evaluation & Extraction 
     model.eval()
     with torch.no_grad():
         # Encode ALL samples (train + test)
@@ -220,7 +214,7 @@ def main():
         mean_recon_loss = np.mean(reconstruction_fidelity)
         print(f"\nMean Reconstruction Loss (Test): {mean_recon_loss:.6f}")
 
-    # --- Save Latent Space ---
+    #  Save Latent Space 
     z_df = pd.DataFrame(z_all.cpu().numpy(), index=full_df.index)
     z_df.columns = z_df.columns + 1
     z_df.columns.name = 'sample_id'
@@ -233,14 +227,14 @@ def main():
     print(f"Encoded data saved to: {save_path}")
     print(f"Output shape: {z_df.shape}")
 
-    # --- Plotting History ---
+    # Plotting History
     plt.figure(figsize=(10, 5))
     plt.plot(history['loss'], label='Total Loss')
     plt.title('Training Loss')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    # plt.savefig("training_history.pdf")
+    plt.savefig("training_history.pdf")
     plt.show()
 
 
